@@ -26,3 +26,41 @@ The vision of the package is as follows:
    different font profile by date, session, etc..
    
 The package is simply named as `font-manager`.
+
+# Defining Fonts
+
+To use this package, we have to first define several fonts that we
+intend to use. A font is an object which contains the following
+fields:
+
++ `name`: the name of the font.
++ `url`: the URL to download the font files, it must point to a `.zip`
+  file.
+
+Register a new font with the following function
+`font-manager-register-font`.
+
+# Installing Fonts
+
+To install fonts we have to download the font files and install them
+to the operating system. Since this package is intended to work on
+different operating systems, we have to ask the user to install the
+font files manually. The package will handle the downloading and
+extracting `.ttf` files.
+
+# Defining Font Profiles
+
+A font profile consists of the following properties:
+
++ `name`: the name of the profile.
++ `fixed-pitch-font`: font for code.
++ `variable-pitch-font`:  font for text fore prose.
++  `weight`: regular, bold, thin, etc..
++  `height`: affect the size of the font.
+
+To register a new font profile, use
+`font-manager-register-font-profile`.
+
+# Applying Font Profiles
+
+Applying a font profile applies its properties in Emacs.
