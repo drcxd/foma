@@ -291,6 +291,7 @@ where the car is the font name and cdr is the URL."
 ;;;###autoload
 (defun foma-describe-current-profile ()
   "Describe the font profile currently used."
+  (interactive)
   (message "The current foma profile is %s" foma--current-profile))
 
 (provide 'foma)
