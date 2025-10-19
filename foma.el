@@ -1,4 +1,4 @@
-;;; Foma.el --- Download, install and quickly switch between different font profiles  -*- lexical-binding: t; -*-
+;;; foma.el --- Download font files and quickly switch between different profiles  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 Xiaoduanc
 
@@ -25,6 +25,8 @@
 ;; TODO
 
 ;;; Code:
+
+(require 'cl-lib)
 
 (defgroup foma nil
   "Quickly switch between font profiles."
@@ -93,7 +95,7 @@ files are stored."
   "Helper function to register multiple fonts. FONT-LIST is a list of pairs
 where the car is the font name and cdr is the URL."
   (dolist (pair font-list)
-    (foma-regiser-font (car pari) (cdr pair))))
+    (foma-register-font (car pair) (cdr pair))))
 
 (defun foma--download-dir ()
   "Compute the actual directory to store downloaded font files."
@@ -106,9 +108,10 @@ where the car is the font name and cdr is the URL."
   (mapc #'foma--download-font foma-fonts)
   (foma--extract-font-files))
 
-(defun foma--download-font (font)
+(defun foma--download-font (record)
   "Download font files for a single font."
-  (let ((dir (foma--download-dir)))
+  (let ((dir (foma--download-dir))
+        (font (cdr record)))
     (unless (file-exists-p dir)
       (dired-create-directory dir))
     (require 'url)
@@ -196,14 +199,15 @@ where the car is the font name and cdr is the URL."
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
   (let ((profile (foma--get-profile profile-name)))
     (if profile
-        (foma-setup-fonts
-         (foma-profile-fixed-pitch-font profile)
-         (or (foma-profile-variable-pitch-font profile)
-             foma-default-variable-pitch-font)
-         (or (foma-profile-weight profile)
-             foma-default-weight)
-         (or (foma-profile-height profile)
-             foma-default-height))
+        (progn (foma-setup-fonts
+                (foma-profile-fixed-pitch-font profile)
+                (or (foma-profile-variable-pitch-font profile)
+                    foma-default-variable-pitch-font)
+                (or (foma-profile-weight profile)
+                    foma-default-weight)
+                (or (foma-profile-height profile)
+                    foma-default-height))
+               (setq foma--current-profile profile-name))
       (warn "Missing font profile: %s" profile-name))))
 
 (defun foma--get-profile-names ()
@@ -224,7 +228,7 @@ where the car is the font name and cdr is the URL."
 ;;;###autoload
 (defun foma-setup-fixed-pitch-font (font weight height)
   "Setup default and fixed-pitch faces."
-  (interactive "sFont: \nnHeight: \nSWeight: ")
+  (interactive "sFont: \nSWeight: \nnHeight: ")
   (if (foma--font-available-p font)
       (progn
         (set-face-attribute 'default nil
@@ -235,7 +239,7 @@ where the car is the font name and cdr is the URL."
                             :font font
                             :weight weight
                             :height 1.0))
-    (warn (format "Fonts %s is not available!" font))))
+    (warn (format "Font %s is not available!" font))))
 
 ;;;###autoload
 (defun foma-setup-variable-pitch-font (font)
@@ -245,7 +249,7 @@ where the car is the font name and cdr is the URL."
       (set-face-attribute 'variable-pitch nil
                           :font font
                           :height 1.0)
-    (warn (format "Fonts %s is not available!" font))))
+    (warn (format "Font %s is not available!" font))))
 
 ;; credit: https://emacsredux.com/blog/2021/12/22/check-if-a-font-is-available-with-emacs-lisp/
 (defun foma--font-available-p (font-name)
@@ -261,11 +265,12 @@ where the car is the font name and cdr is the URL."
     (warn (format "Font %s is not available!" font))))
 
 (defun foma--apply-profile-by-num (n)
+  "Apply the profile using an index into the profile list."
   (let ((len (length foma-profiles)))
     (if (= 0 len)
         (message "No font profiles!")
       (let* ((idx (% n len))
-             (profile-name (foma-profile-name (nth idx foma-profiles))))
+             (profile-name (foma-profile-name (cdr (nth idx foma-profiles)))))
         (foma-apply-profile profile-name)))))
 
 ;;;###autoload
@@ -273,7 +278,7 @@ where the car is the font name and cdr is the URL."
   "Apply a profile depends on date."
   (interactive)
   (let ((day (/ (time-convert (current-time) 'integer) (* 60 60 24))))
-    (foma--aply-profile-by-num day)))
+    (foma--apply-profile-by-num day)))
 
 ;;;###autoload
 (defun foma-apply-profile-rand ()
@@ -289,4 +294,4 @@ where the car is the font name and cdr is the URL."
   (message "The current foma profile is %s" foma--current-profile))
 
 (provide 'foma)
-;;; foma ends here
+;;; foma.el ends here
