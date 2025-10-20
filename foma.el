@@ -26,8 +26,6 @@
 
 ;;; Code:
 
-(require 'cl-lib)
-
 (defgroup foma nil
   "Quickly switch between font profiles."
   :group 'convenience
@@ -59,43 +57,15 @@ files are stored."
   :type '(string)
   :group 'foma)
 
-(cl-defstruct foma-font
-  "A font object that specifies where to download it."
-  name
-  url)
-
-(cl-defstruct foma-profile
-  "A font profile specifies fonts and face properties."
-  name
-  fixed-pitch-font
-  variable-pitch-font
-  weight
-  height)
-
 (defvar foma--current-profile nil
   "Currently selected profile.")
 
 (defvar foma-fonts '()
-  "A list of known fonts.")
+  "A list of known fonts. A font is a pair of name and URL.")
 
 (defvar foma-profiles '()
-  "A list of font profiles.")
-
-(defun foma-register-font (name url)
-  "Register a font so that font manager knows where to download it."
-  (unless
-      (alist-get name foma-fonts nil nil #'equal)
-    (push (cons name
-                (make-foma-font
-                 :name name
-                 :url url))
-          foma-fonts)))
-
-(defun foma-register-fonts (font-list)
-  "Helper function to register multiple fonts. FONT-LIST is a list of pairs
-where the car is the font name and cdr is the URL."
-  (dolist (pair font-list)
-    (foma-register-font (car pair) (cdr pair))))
+  "A list of font profiles. A profile is a list that contains the following
+elements: name, fixed pitch font, variable pitch font, weight, height.")
 
 (defun foma--download-dir ()
   "Compute the actual directory to store downloaded font files."
@@ -108,15 +78,14 @@ where the car is the font name and cdr is the URL."
   (mapc #'foma--download-font foma-fonts)
   (foma--extract-font-files))
 
-(defun foma--download-font (record)
+(defun foma--download-font (font)
   "Download font files for a single font."
-  (let ((dir (foma--download-dir))
-        (font (cdr record)))
+  (let ((dir (foma--download-dir)))
     (unless (file-exists-p dir)
       (dired-create-directory dir))
     (require 'url)
-    (let* ((name (foma-font-name font))
-           (url (foma-font-url font))
+    (let* ((name (car font))
+           (url (cdr font))
            (file-name (format "%s.%s" name (file-name-extension url))))
       (url-copy-file url (file-name-concat dir file-name) t)
       (message "Font %s has been downloaded!" name))))
@@ -168,29 +137,6 @@ where the car is the font name and cdr is the URL."
                     (file-name-nondirectory ttf-file)
                     (error-message-string err))))))))
 
-(defun foma-register-profile (name fix &optional variable weight height)
-  "Register a new font profile."
-  (unless
-      (alist-get name foma-profiles nil nil #'equal)
-    (push (cons name
-                (make-foma-profile
-                 :name name
-                 :fixed-pitch-font fix
-                 :variable-pitch-font variable
-                 :weight weight
-                 :height height))
-          foma-profiles)))
-
-(defun foma-register-profiles (profile-list)
-  "Helper function to register multiple profiles."
-  (dolist (profile profile-list)
-    (foma-register-profile
-     (nth 0 profile)
-     (nth 1 profile)
-     (nth 2 profile)
-     (nth 3 profile)
-     (nth 4 profile))))
-
 ;;;###autoload
 (defun foma-apply-profile (profile-name)
   "Apply the font profile specified by the given profile name."
@@ -200,15 +146,30 @@ where the car is the font name and cdr is the URL."
   (let ((profile (foma--get-profile profile-name)))
     (if profile
         (progn (foma-setup-fonts
-                (foma-profile-fixed-pitch-font profile)
-                (or (foma-profile-variable-pitch-font profile)
+                (foma--profile-fixed-pitch-font profile)
+                (or (foma--profile-variable-pitch-font profile)
                     foma-default-variable-pitch-font)
-                (or (foma-profile-weight profile)
+                (or (foma--profile-weight profile)
                     foma-default-weight)
-                (or (foma-profile-height profile)
+                (or (foma--profile-height profile)
                     foma-default-height))
                (setq foma--current-profile profile-name))
       (warn "Missing font profile: %s" profile-name))))
+
+(defun foma--profile-name (profile)
+  (nth 0 profile))
+
+(defun foma--profile-fixed-pitch-font (profile)
+  (nth 1 profile))
+
+(defun foma--profile-variable-pitch-font (profile)
+  (nth 2 profile))
+
+(defun foma--profile-weight (profile)
+  (nth 3 profile))
+
+(defun foma--profile-height (profile)
+  (nth 4 profile))
 
 (defun foma--get-profile-names ()
   "Return the registered profile names."
@@ -216,7 +177,7 @@ where the car is the font name and cdr is the URL."
 
 (defun foma--get-profile (name)
   "Return font profile by name."
-  (alist-get name foma-profiles nil nil #'equal))
+  (assoc name foma-profiles))
 
 ;;;###autoload
 (defun foma-setup-fonts (fixed variable weight height)
@@ -270,7 +231,7 @@ where the car is the font name and cdr is the URL."
     (if (= 0 len)
         (message "No font profiles!")
       (let* ((idx (% n len))
-             (profile-name (foma-profile-name (cdr (nth idx foma-profiles)))))
+             (profile-name (foma--profile-name (nth idx foma-profiles))))
         (foma-apply-profile profile-name)))))
 
 ;;;###autoload
@@ -285,7 +246,7 @@ where the car is the font name and cdr is the URL."
   "Apply a profile randomly."
   (interactive)
   (let* ((record (seq-random-elt foma-profiles))
-         (profile-name (car record)))
+         (profile-name (foma--profile-name record)))
     (foma-apply-profile profile-name)))
 
 ;;;###autoload
