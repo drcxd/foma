@@ -93,8 +93,6 @@ elements: name, fixed pitch font, variable pitch font, weight, height.")
   "Query Google Fonts API for FAMILY-NAME and return parsed JSON response."
   (require 'url)
   (require 'json)
-  (when (string-empty-p foma-google-fonts-api-key)
-    (error "Google Fonts API key is not set. Please set foma-google-fonts-api-key"))
   (let* ((encoded-family (url-hexify-string family-name))
          (api-url (format "https://www.googleapis.com/webfonts/v1/webfonts?key=%s&family=%s"
                          foma-google-fonts-api-key
@@ -131,27 +129,30 @@ Returns an alist of (style-name . url) pairs."
     (message "Font %s has been downloaded from zip!" name)))
 
 (defun foma--download-font-from-google (font)
-  "Download font files from Google Fonts for FONT."
+  "Download font files from Google Fonts for FONT.
+Skips download if API key is not set."
   (require 'url)
   (let* ((dir (foma--download-dir))
          (family-name (foma--font-name font)))
-    (unless (file-exists-p dir)
-      (dired-create-directory dir))
-    (message "Querying Google Fonts API for %s..." family-name)
-    (let* ((response (foma--query-google-fonts-api family-name))
-           (style-url-pairs (foma--extract-font-urls-from-response response)))
-      (if style-url-pairs
-          (progn
-            (message "Found %d font files for %s" (length style-url-pairs) family-name)
-            (dolist (pair style-url-pairs)
-              (let* ((style-name (car pair))
-                     (url (cdr pair))
-                     (file-name (format "%s-%s.ttf" family-name style-name))
-                     (dest-path (file-name-concat dir file-name)))
-                (message "Downloading %s..." file-name)
-                (url-copy-file url dest-path t)))
-            (message "All font files for %s downloaded!" family-name))
-        (error "No font files found for family: %s" family-name)))))
+    (if (string-empty-p foma-google-fonts-api-key)
+        (warn "Skipping Google Font '%s': API key not set. Please set foma-google-fonts-api-key" family-name)
+      (unless (file-exists-p dir)
+        (dired-create-directory dir))
+      (message "Querying Google Fonts API for %s..." family-name)
+      (let* ((response (foma--query-google-fonts-api family-name))
+             (style-url-pairs (foma--extract-font-urls-from-response response)))
+        (if style-url-pairs
+            (progn
+              (message "Found %d font files for %s" (length style-url-pairs) family-name)
+              (dolist (pair style-url-pairs)
+                (let* ((style-name (car pair))
+                       (url (cdr pair))
+                       (file-name (format "%s-%s.ttf" family-name style-name))
+                       (dest-path (file-name-concat dir file-name)))
+                  (message "Downloading %s..." file-name)
+                  (url-copy-file url dest-path t)))
+              (message "All font files for %s downloaded!" family-name))
+          (error "No font files found for family: %s" family-name))))))
 
 ;;;###autoload
 (defun foma-download-all-fonts ()
