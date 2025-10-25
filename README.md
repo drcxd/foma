@@ -29,27 +29,43 @@ The package is simply named as `foma` for FOnt MAnagement.
 
 # Font
 
-A font in `foma` is simply a pair whose `car` is its name and `cdr` is
-an URL that points to a `.zip` file that contains the `.ttf` font
-files. Register fonts to `foma` by adding its pair to `foma-fonts`.
+A font in `foma` is a list which has the following elements:
+
+1. `name`: a string represents the name of the font. If the font files
+   are downloaded from a `.zip` file, then this name is only an
+   identifier with no other use. If the font files are downloaded from
+   Google Fonts, then this is the family name of the font.
+2. `type`: a symbol which can be either `'zip` or `'google`. This
+   element specifies where should we download the font files. If its
+   value is `'google`, `foma` will try to download it from Google
+   Fonts. Note that this requires a Google Fonts API key, which is
+   hold in the variable `foma-google-fonts-api-key`.
+3. `url`: a string that is an URL to a `.zip` file that contains the
+   font files. Note that this is only required if the `type` is set to
+   `'zip`.
+
+<!-- A font in `foma` is simply a pair whose `car` is its name and `cdr` is -->
+<!-- an URL that points to a `.zip` file that contains the `.ttf` font -->
+<!-- files. Register fonts to `foma` by adding its pair to `foma-fonts`. -->
 
 # Downloading Font Files
 
 `foma-download-all-fonts` iterate through `foma-fonts` and download
-every `.zip` files specified by the URL in each pair. After that, the
-`.ttf` files would be extracted from the `.zip` files in the same
-directory for the users to install manually.
+font files either from Google Fonts or from the provided URL directly,
+depending on the value of `type`. After that, the `.ttf` files would
+be extracted from the `.zip` files in the same directory for the users
+to install manually.
 
-I am planning to support downloading font files from Google Fonts, but
-this requires an API key which has to be provided by the user. This
-can be done by using Google Fonts web API.
+## Downloading from Google Fonts
 
-Example:
+To downloading from Google Fonts, we have to use the following API to
+query metadata of the font family:
 
+```
 https://www.googleapis.com/webfonts/v1/webfonts?key=your-api-key&family=noto+sans
+```
 
-Replace `your-api-key` with the actual API key. This query would
-return the metadata of Noto Sans as follows:
+It will return the metadata as follows in Json:
 
 ```json
 {
@@ -117,8 +133,12 @@ return the metadata of Noto Sans as follows:
 }
 ```
 
-Then we can use the link to `.ttf` files in the metadata to download
-`.ttf` files directly. See the Google Fonts API
+We iterate through the `files` object and collect the style names and
+URLs of font files. We use the URL to download the file and name it
+using the font family and the style name in the directory specified by
+`foma-fonts-dir`.
+
+See the Google Fonts API
 [documentation](https://developers.google.com/fonts/docs/developer_api)
 for more information.
 

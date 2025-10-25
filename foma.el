@@ -57,19 +57,101 @@ files are stored."
   :type '(string)
   :group 'foma)
 
+(defvar foma-google-fonts-api-key ""
+  "An API key that is required to download font files from Google Fonts.")
+
 (defvar foma--current-profile nil
   "Currently selected profile.")
 
 (defvar foma-fonts '()
-  "A list of known fonts. A font is a pair of name and URL.")
+  "A list of known fonts. Each font is a list with the following elements:
+- name: font name (identifier for zip, family name for Google Fonts)
+- type: either 'zip or 'google
+- url: URL to zip file (only required if type is 'zip)")
 
 (defvar foma-profiles '()
   "A list of font profiles. A profile is a list that contains the following
 elements: name, fixed pitch font, variable pitch font, weight, height.")
 
+(defun foma--font-name (font)
+  "Return the name of FONT."
+  (nth 0 font))
+
+(defun foma--font-type (font)
+  "Return the type of FONT."
+  (nth 1 font))
+
+(defun foma--font-url (font)
+  "Return the URL of FONT."
+  (nth 2 font))
+
 (defun foma--download-dir ()
   "Compute the actual directory to store downloaded font files."
   (file-name-concat user-emacs-directory foma-fonts-dir))
+
+(defun foma--query-google-fonts-api (family-name)
+  "Query Google Fonts API for FAMILY-NAME and return parsed JSON response."
+  (require 'url)
+  (require 'json)
+  (when (string-empty-p foma-google-fonts-api-key)
+    (error "Google Fonts API key is not set. Please set foma-google-fonts-api-key"))
+  (let* ((encoded-family (url-hexify-string family-name))
+         (api-url (format "https://www.googleapis.com/webfonts/v1/webfonts?key=%s&family=%s"
+                         foma-google-fonts-api-key
+                         encoded-family))
+         (buffer (url-retrieve-synchronously api-url t)))
+    (unless buffer
+      (error "Failed to retrieve data from Google Fonts API for family: %s" family-name))
+    (with-current-buffer buffer
+      (goto-char (point-min))
+      (re-search-forward "^$")
+      (let ((json-object-type 'alist)
+            (json-array-type 'list)
+            (json-key-type 'string))
+        (json-read)))))
+
+(defun foma--extract-font-urls-from-response (response)
+  "Extract font file URLs and style names from Google Fonts API RESPONSE.
+Returns an alist of (style-name . url) pairs."
+  (let* ((items (alist-get "items" response nil nil #'string=))
+         (first-item (car items))
+         (files (alist-get "files" first-item nil nil #'string=)))
+    files))
+
+(defun foma--download-font-from-zip (font)
+  "Download font from a zip file URL for FONT."
+  (require 'url)
+  (let* ((dir (foma--download-dir))
+         (name (foma--font-name font))
+         (url (foma--font-url font))
+         (file-name (format "%s.%s" name (file-name-extension url))))
+    (unless (file-exists-p dir)
+      (dired-create-directory dir))
+    (url-copy-file url (file-name-concat dir file-name) t)
+    (message "Font %s has been downloaded from zip!" name)))
+
+(defun foma--download-font-from-google (font)
+  "Download font files from Google Fonts for FONT."
+  (require 'url)
+  (let* ((dir (foma--download-dir))
+         (family-name (foma--font-name font)))
+    (unless (file-exists-p dir)
+      (dired-create-directory dir))
+    (message "Querying Google Fonts API for %s..." family-name)
+    (let* ((response (foma--query-google-fonts-api family-name))
+           (style-url-pairs (foma--extract-font-urls-from-response response)))
+      (if style-url-pairs
+          (progn
+            (message "Found %d font files for %s" (length style-url-pairs) family-name)
+            (dolist (pair style-url-pairs)
+              (let* ((style-name (car pair))
+                     (url (cdr pair))
+                     (file-name (format "%s-%s.ttf" family-name style-name))
+                     (dest-path (file-name-concat dir file-name)))
+                (message "Downloading %s..." file-name)
+                (url-copy-file url dest-path t)))
+            (message "All font files for %s downloaded!" family-name))
+        (error "No font files found for family: %s" family-name)))))
 
 ;;;###autoload
 (defun foma-download-all-fonts ()
@@ -79,16 +161,16 @@ elements: name, fixed pitch font, variable pitch font, weight, height.")
   (foma--extract-font-files))
 
 (defun foma--download-font (font)
-  "Download font files for a single font."
-  (let ((dir (foma--download-dir)))
-    (unless (file-exists-p dir)
-      (dired-create-directory dir))
-    (require 'url)
-    (let* ((name (car font))
-           (url (cdr font))
-           (file-name (format "%s.%s" name (file-name-extension url))))
-      (url-copy-file url (file-name-concat dir file-name) t)
-      (message "Font %s has been downloaded!" name))))
+  "Download font files for a single FONT.
+Dispatches to appropriate download function based on font type."
+  (let ((type (foma--font-type font)))
+    (cond
+     ((eq type 'zip)
+      (foma--download-font-from-zip font))
+     ((eq type 'google)
+      (foma--download-font-from-google font))
+     (t
+      (error "Unknown font type: %s" type)))))
 
 (defun foma--extract-font-files ()
   "Extract font files from .zip files."
