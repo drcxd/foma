@@ -26,6 +26,10 @@
 
 ;;; Code:
 
+(require 'dired)
+(require 'json)
+(require 'url)
+
 (defgroup foma nil
   "Quickly switch between font profiles."
   :group 'convenience
@@ -66,8 +70,8 @@ files are stored."
 (defvar foma-fonts '()
   "A list of known fonts. Each font is a list with the following elements:
 - name: font name (identifier for zip, family name for Google Fonts)
-- type: either 'zip or 'google
-- url: URL to zip file (only required if type is 'zip)")
+- type: either \\='zip or \\='google
+- url: URL to zip file (only required if type is \\='zip)")
 
 (defvar foma-profiles '()
   "A list of font profiles. A profile is a list that contains the following
@@ -91,8 +95,6 @@ elements: name, fixed pitch font, variable pitch font, weight, height.")
 
 (defun foma--query-google-fonts-api (family-name)
   "Query Google Fonts API for FAMILY-NAME and return parsed JSON response."
-  (require 'url)
-  (require 'json)
   (let* ((encoded-family (url-hexify-string family-name))
          (api-url (format "https://www.googleapis.com/webfonts/v1/webfonts?key=%s&family=%s"
                          foma-google-fonts-api-key
@@ -106,6 +108,7 @@ elements: name, fixed pitch font, variable pitch font, weight, height.")
       (let ((json-object-type 'alist)
             (json-array-type 'list)
             (json-key-type 'string))
+        (ignore json-object-type json-array-type json-key-type)
         (json-read)))))
 
 (defun foma--extract-font-urls-from-response (response)
@@ -118,7 +121,6 @@ Returns an alist of (style-name . url) pairs."
 
 (defun foma--download-font-from-zip (font)
   "Download font from a zip file URL for FONT."
-  (require 'url)
   (let* ((dir (foma--download-dir))
          (name (foma--font-name font))
          (url (foma--font-url font))
@@ -131,7 +133,6 @@ Returns an alist of (style-name . url) pairs."
 (defun foma--download-font-from-google (font)
   "Download font files from Google Fonts for FONT.
 Skips download if API key is not set."
-  (require 'url)
   (let* ((dir (foma--download-dir))
          (family-name (foma--font-name font)))
     (if (string-empty-p foma-google-fonts-api-key)
