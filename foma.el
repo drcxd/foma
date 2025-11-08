@@ -77,6 +77,9 @@ files are stored."
   "A list of font profiles. A profile is a list that contains the following
 elements: name, fixed pitch font, variable pitch font, weight, height.")
 
+(defvar foma--process-output-buffer-name "*foma-process-output*"
+  "Buffer name that contains the output of extracting program.")
+
 (defun foma--font-name (font)
   "Return the name of FONT."
   (nth 0 font))
@@ -128,7 +131,8 @@ Returns an alist of (style-name . url) pairs."
     (unless (file-exists-p dir)
       (dired-create-directory dir))
     (url-copy-file url (file-name-concat dir file-name) t)
-    (message "Font %s has been downloaded from zip!" name)))
+    (message "Font %s has been downloaded from zip!" name)
+    file-name))
 
 (defun foma--download-font-from-google (font)
   "Download font files from Google Fonts for FONT.
@@ -159,36 +163,36 @@ Skips download if API key is not set."
 (defun foma-download-all-fonts ()
   "Download all registered fonts."
   (interactive)
-  (mapc #'foma--download-font foma-fonts)
-  (foma--extract-font-files))
+  (mapc #'foma-download-font foma-fonts))
 
-(defun foma--download-font (font)
+(defun foma-download-font (font)
   "Download font files for a single FONT.
 Dispatches to appropriate download function based on font type."
+  (interactive
+   (list
+    (assoc (completing-read "Font name: " (mapcar #'car foma-fonts)) foma-fonts)))
   (let ((type (foma--font-type font)))
     (cond
      ((eq type 'zip)
-      (foma--download-font-from-zip font))
+      (let ((file-name (foma--download-font-from-zip font)))
+        (foma--extract-font-files file-name)))
      ((eq type 'google)
       (foma--download-font-from-google font))
      (t
       (error "Unknown font type: %s" type)))))
 
-(defun foma--extract-font-files ()
+(defun foma--extract-font-files (file-name)
   "Extract font files from .zip files."
   (let ((dir (foma--download-dir)))
     (unless (file-directory-p dir)
       (error "Font directory does not exist: %s" dir))
-
-    (let ((zip-files (directory-files dir t "\\.zip\\'")))
-      (dolist (zip-file zip-files)
-        (message "Extracting: %s" (file-name-nondirectory zip-file))
-        (let* ((temp-dir (make-temp-file (file-name-base zip-file) t))
-               (extracted-files (foma--extract-zip-to-dir zip-file temp-dir)))
-          (if extracted-files
-              (foma--move-ttf-files temp-dir dir)
-            (message "Failed to extract: %s" (file-name-nondirectory zip-file)))
-          (delete-directory temp-dir t))))))
+    (let ((zip-file (file-name-concat dir file-name)))
+      (message "Extracting: %s" (file-name-nondirectory zip-file))
+      (let* ((temp-dir (make-temp-file (file-name-base zip-file) t))
+             (extracted-files (foma--extract-zip-to-dir zip-file temp-dir)))
+        (if extracted-files
+            (foma--move-font-files temp-dir dir))
+        (delete-directory temp-dir t)))))
 
 (defun foma--extract-zip-to-dir (zip-file dir)
   "Extract ZIP-FILE to DIR and return list of extracted files."
@@ -198,8 +202,10 @@ Dispatches to appropriate download function based on font type."
   (unless (file-directory-p dir)
     (make-directory dir t))
 
-  (let ((result (call-process "7z" nil nil nil "x" zip-file
-                              (concat "-o" dir) "-y")))
+  (let* ((buf (or (get-buffer foma--process-output-buffer-name)
+                  (generate-new-buffer foma--process-output-buffer-name)))
+         (result (call-process "7z" nil buf nil "x" (expand-file-name zip-file)
+                              (concat "-o" (expand-file-name dir)) "-y")))
     (if (eq result 0)
         (directory-files-recursively dir "")
       (message "Failed to extract %s (exit code: %s)"
@@ -207,18 +213,18 @@ Dispatches to appropriate download function based on font type."
                result)
       nil)))
 
-(defun foma--move-ttf-files (src-dir dst-dir)
-  "Move all .ttf files from SRC-DIR to DST-DIR recursively."
-  (let ((ttf-files (directory-files-recursively src-dir "\\.ttf\\'")))
-    (dolist (ttf-file ttf-files)
+(defun foma--move-font-files (src-dir dst-dir)
+  "Move all .ttf/.otf files from SRC-DIR to DST-DIR recursively."
+  (let ((font-files (directory-files-recursively src-dir "\\.[ot]tf\\'")))
+    (dolist (font-file font-files)
       (let ((dst-file (expand-file-name
-                       (file-name-nondirectory ttf-file)
+                       (file-name-nondirectory font-file)
                        dst-dir)))
         (condition-case err
-            (rename-file ttf-file dst-file t)
+            (rename-file font-file dst-file t)
           (error
            (message "Failed to move %s: %s"
-                    (file-name-nondirectory ttf-file)
+                    (file-name-nondirectory font-file)
                     (error-message-string err))))))))
 
 ;;;###autoload
