@@ -312,7 +312,9 @@ Dispatches to appropriate download function based on font type."
   "Chinese characters use the given font."
   (interactive "sFont name: ")
   (if (foma--font-available-p font)
-      (set-fontset-font "fontset-default" 'han font)
+      (progn
+        (set-fontset-font "fontset-default" 'han font)
+        (set-fontset-font t 'cjk-misc font))
     (warn (format "Font %s is not available!" font))))
 
 (defun foma--apply-profile-by-num (n)
