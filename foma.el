@@ -256,7 +256,8 @@ Dispatches to appropriate download function based on font type."
           (if variable
               (foma-setup-variable-pitch-font variable))
           (if chinese
-              (foma-setup-chinese-font chinese)))
+              (foma-setup-chinese-font chinese))
+          (setq foma--current-profile profile-name))
       (warn "Missing font profile: %s" profile-name))))
 
 (defun foma--profile-name (profile)
