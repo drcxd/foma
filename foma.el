@@ -29,6 +29,7 @@
 (require 'dired)
 (require 'json)
 (require 'url)
+(require 'seq)
 
 (defgroup foma nil
   "Quickly switch between font profiles."
@@ -48,9 +49,15 @@
   :group 'foma)
 
 (defcustom foma-default-variable-pitch-font
-  ""
+  nil
   "Default variable pitch font to use in a font profile which does not
 specify it."
+  :type '(string)
+  :group 'foma)
+
+(defcustom foma-default-chinese-font
+  nil
+  "Default font for Chinese characters and punctuations."
   :type '(string)
   :group 'foma)
 
@@ -74,8 +81,9 @@ files are stored."
 - url: URL to zip file (only required if type is \\='zip)")
 
 (defvar foma-profiles '()
-  "A list of font profiles. A profile is a list that contains the following
-elements: name, fixed pitch font, variable pitch font, weight, height.")
+  "A list of font profiles. A profile is a plist that contains the
+following elements: name, fixed-pitch-font, variable-pitch-font,
+chinese-font, weight, and height.")
 
 (defvar foma--process-output-buffer-name "*foma-process-output*"
   "Buffer name that contains the output of extracting program.")
@@ -235,46 +243,51 @@ Dispatches to appropriate download function based on font type."
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
   (let ((profile (foma--get-profile profile-name)))
     (if profile
-        (progn (foma-setup-fonts
-                (foma--profile-fixed-pitch-font profile)
-                (or (foma--profile-variable-pitch-font profile)
-                    foma-default-variable-pitch-font)
-                (or (foma--profile-weight profile)
-                    foma-default-weight)
-                (or (foma--profile-height profile)
-                    foma-default-height))
-               (setq foma--current-profile profile-name))
+        (let ((fixed (foma--profile-fixed-pitch-font profile))
+              (variable (or (foma--profile-variable-pitch-font profile)
+                            foma-default-variable-pitch-font))
+              (chinese (or (foma--profile-chinese-font profile)
+                           foma-default-chinese-font))
+              (weight (or (foma--profile-weight profile)
+                          foma-default-weight))
+              (height (or (foma--profile-height profile)
+                          foma-default-height)))
+          (foma-setup-fixed-pitch-font fixed weight height)
+          (if variable
+              (foma-setup-variable-pitch-font variable))
+          (if chinese
+              (foma-setup-chinese-font chinese)))
       (warn "Missing font profile: %s" profile-name))))
 
 (defun foma--profile-name (profile)
-  (nth 0 profile))
+  (plist-get profile :name))
 
 (defun foma--profile-fixed-pitch-font (profile)
-  (nth 1 profile))
+  (plist-get profile :fixed-pitch-font))
 
 (defun foma--profile-variable-pitch-font (profile)
-  (nth 2 profile))
+  (plist-get profile :variable-pitch-font))
+
+(defun foma--profile-chinese-font (profile)
+  (plist-get profile :chinese-font))
 
 (defun foma--profile-weight (profile)
-  (nth 3 profile))
+  (plist-get profile :weight))
 
 (defun foma--profile-height (profile)
-  (nth 4 profile))
+  (plist-get profile :height))
 
 (defun foma--get-profile-names ()
   "Return the registered profile names."
-  (mapcar #'car foma-profiles))
+  (mapcar (lambda (p)
+            (foma--profile-name p))
+          foma-profiles))
 
 (defun foma--get-profile (name)
   "Return font profile by name."
-  (assoc name foma-profiles))
-
-;;;###autoload
-(defun foma-setup-fonts (fixed variable weight height)
-  "Apply given font properties in Emacs."
-  (interactive "sFixed pitch font: \nsVariable pitch font: \nSWeight: \nnHeight: ")
-  (foma-setup-fixed-pitch-font fixed weight height)
-  (foma-setup-variable-pitch-font variable))
+  (seq-find (lambda (p)
+              (string= name (foma--profile-name p)))
+            foma-profiles))
 
 ;;;###autoload
 (defun foma-setup-fixed-pitch-font (font weight height)
