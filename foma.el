@@ -48,14 +48,28 @@
   :type '(number)
   :group 'foma)
 
-(defcustom foma-default-variable-pitch-font
+(defcustom foma-default-fixed
+  nil
+  "Default fixed pitch font to use in a font profile which does not
+specify it."
+  :type '(string)
+  :group 'foma)
+
+(defcustom foma-default-variable
   nil
   "Default variable pitch font to use in a font profile which does not
 specify it."
   :type '(string)
   :group 'foma)
 
-(defcustom foma-default-chinese-font
+(defcustom foma-default-serif
+  nil
+  "Default variable pitch font (serif) to use in a font profile which does
+not specify it."
+  :type '(string)
+  :group 'foma)
+
+(defcustom foma-default-chinese
   nil
   "Default font for Chinese characters and punctuations."
   :type '(string)
@@ -66,6 +80,12 @@ specify it."
   "The directory relative to the user emacs directory where downloaded font
 files are stored."
   :type '(string)
+  :group 'foma)
+
+(defcustom foma-use-serif
+  nil
+  "Non-nil to use serif font for variable pitch font."
+  :type '(boolean)
   :group 'foma)
 
 (defvar foma-google-fonts-api-key ""
@@ -243,15 +263,21 @@ Dispatches to appropriate download function based on font type."
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
   (let ((profile (foma--get-profile profile-name)))
     (if profile
-        (let ((fixed (foma--profile-fixed-pitch-font profile))
-              (variable (or (foma--profile-variable-pitch-font profile)
-                            foma-default-variable-pitch-font))
-              (chinese (or (foma--profile-chinese-font profile)
-                           foma-default-chinese-font))
-              (weight (or (foma--profile-weight profile)
-                          foma-default-weight))
-              (height (or (foma--profile-height profile)
-                          foma-default-height)))
+        (let* ((fixed (or (foma--profile-fixed profile)
+                          foma-default-fixed))
+               (use-serif (or (foma--profile-use-serif profile)
+                              foma-use-serif))
+               (variable (if use-serif
+                             (or (foma--profile-serif profile)
+                                 foma-default-serif)
+                           (or (foma--profile-variable profile)
+                               foma-default-variable)))
+               (chinese (or (foma--profile-chinese profile)
+                            foma-default-chinese))
+               (weight (or (foma--profile-weight profile)
+                           foma-default-weight))
+               (height (or (foma--profile-height profile)
+                           foma-default-height)))
           (foma-setup-fixed-pitch-font fixed weight height)
           (if variable
               (foma-setup-variable-pitch-font variable))
@@ -263,20 +289,26 @@ Dispatches to appropriate download function based on font type."
 (defun foma--profile-name (profile)
   (plist-get profile :name))
 
-(defun foma--profile-fixed-pitch-font (profile)
-  (plist-get profile :fixed-pitch-font))
+(defun foma--profile-fixed (profile)
+  (plist-get profile :fixed))
 
-(defun foma--profile-variable-pitch-font (profile)
-  (plist-get profile :variable-pitch-font))
+(defun foma--profile-variable (profile)
+  (plist-get profile :variable))
 
-(defun foma--profile-chinese-font (profile)
-  (plist-get profile :chinese-font))
+(defun foma--profile-chinese (profile)
+  (plist-get profile :chinese))
 
 (defun foma--profile-weight (profile)
   (plist-get profile :weight))
 
 (defun foma--profile-height (profile)
   (plist-get profile :height))
+
+(defun foma--profile-serif (profile)
+  (plist-get profile :serif))
+
+(defun foma--profile-use-serif (profile)
+  (plist-get profile :use-serif))
 
 (defun foma--get-profile-names ()
   "Return the registered profile names."
