@@ -1,0 +1,134 @@
+foma is a package that helps Emacs users downloading font files and
+switching between different fonts. Its name is simply FOnt MAnagement
+or Font Obsessed Man's Artifact.
+
+* Installation
+
+Currently, you can only install this package manually. Here is a
+sample installation script for [[https://github.com/progfolio/elpaca][elpaca]]:
+
+#+begin_src emacs-lisp
+  (use-package foma
+    :ensure (foma :type git :host github :repo "drcxd/foma" :files ("*.el")))
+#+end_src
+
+* Configuration
+
+** Sample configuration and TL;DR usage
+
+Here is a sample configuration:
+
+#+begin_src emacs-lisp
+  (use-package foma
+    :ensure (foma :type git :host github :repo "drcxd/foma" :files ("*.el"))
+    :init
+    (setq foma-default-sans "Noto Sans"
+          foma-default-mono "Noto Sans Mono"
+          foma-default-serif "Noto Serif"
+          foma-default-chinese "LXGW WenKai"
+          foma-use-serif t
+          foma-google-fonts-api-key "" ;; your google fonts api key here
+          foma-default-weight 'regular
+          foma-default-height 140
+          foma-fonts '(("Cascadia Code" zip "https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip")
+                       ("LXGW WenKai" zip "https://github.com/lxgw/LxgwWenKai/releases/download/v1.510/lxgw-wenkai-v1.510.zip")
+                       ("Noto Sans" google)
+                       ("Noto Sans Mono" google)
+                       ("Noto Sans Serif" google))
+          foma-profiles '((:name "Cascadia" :mono "Cascadia Code")
+                          (:name "IBM" :mono "IBM Plex Mono" :sans "IBM Plex Sans")
+                          (:name "Noto"
+                                 :mono "Noto Sans Mono"
+                                 :sans "Noto Sans"
+                                 :serif "Noto Serif")))
+    :config
+    ;; NOTE: A warning is rasied when the fonts used in the profile is
+    ;; not installed.
+    (foma-apply-profile-by-day))
+#+end_src
+
+Use ~foma-download-all-fonts~ to download the font files specified in
+~fomat-fonts~ and install them in your OS /manually/ so that
+~foma-apply-*~ can work properly.
+
+Note that to download any fonts from Google Fonts, you need to provide
+a Google Fonts API key yourself! (Every one can obtain one for free.)
+
+** Detailed Explanation
+
+foma provides two major functions: downloading /fonts/ and switching
+between /font profiles/. To use foma, you have to describe the fonts
+which you want to download, and the font profiles which you want to
+switch between.
+
+*** Fonts
+
+In foma, a font definition is simply a list with at most three
+elements: the font's name, its source type, and a URL if its source is
+a =.zip= file hosted somewhere on the Internet.
+
+foma supports downloading fonts from =.zip= files that containing
+=.ttf= or =.otf= files. For such a font, its definition must be a
+three element list:
+
+#+begin_src emacs-lisp
+  '("Cascadia Code" zip "https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip")
+#+end_src
+
+foma also supports downloading fonts from [[https://fonts.google.com/][Google Fonts]] as long as you
+provide a Google Fonts [[https://developers.google.com/fonts/docs/getting_started][API]] key through the variable
+~foma-google-fonts-api-key~. Anyone can apply one for free. For such a
+font, its definition is a two element list:
+
+#+begin_src emacs-lisp
+  '("Noto Sans" google)
+#+end_src
+
+All fonts definitions are stored in
+~foma-fonts~. ~foma-download-all-fonts~ will download every font and
+extract =.ttf= and =.otf= files from the =.zip= file. The extraction
+depends on 7zip, please make sure it is installed on your system. They
+are stored in the directory specified by ~foma-fonts-dir~, which is
+relative to ~user-emacs-directory~.
+
+*** Font Profiles
+
+In foma, a font profile is a property list. The essential property of
+the list is ~:name~, though you possibly would like to specify other
+properties:
+
++ ~:mono~: The name of mono space font of this profile.
++ ~:sans~: The name of sans font of this profile.
++ ~:serif~: The name of serif font of this profile.
++ ~:chinese~: The name of Chinese font of this profile.
++ ~:use-serif~: If non-nil, then use the serif font rather than sans
+  for proportional text.
++ ~:weight~: The weight of the fonts of this profile.
++ ~:height~: The height (size) of the fonts of this profile.
+
+
+Each property has a fallback default value ~foma-default-*~ which can
+be customized and accessed by the package when the property is missing
+in a profile.
+
+All font profiles are stored in ~foma-profiles~. You can apply one
+profile by its name with ~foma-apply-profile~. The package also
+provides two different applying scheme: apply randomly
+(~foma-apply-profile-rand~) or by date (~foma-apply-profile-by-day~).
+
+* Personal Notes
+
+This is a package derived from an aggregation of my personal code
+managing fonts in Emacs. I enjoy the aesthetics of fonts and there are
+lots of them around the world. To name a few, Cascadia Code, JetBrains
+Mono, Aporetic... I wanted to settle down with one of them, but I
+found that even the fonts I appreciated the most would make me feel
+exhaustive after seeing them months after months. Thus, the idea of
+quickly switching different fonts come to my mind. In fact, there is a
+similar package out there, the [[https://protesilaos.com/emacs/fontaine][Fontaine]] by Protesilaos. However, its
+vision is a little different from my own. It features customizing
+different faces so that you can use different fonts for code, text,
+mode line, header line, etc.. Though it does provide means to switch
+between different profiles, but that is not its focus. Using certain
+fonts persistently for a longer time is still implicitly implied by
+that package.

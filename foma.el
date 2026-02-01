@@ -22,7 +22,7 @@
 ;; - Adopt font profiles in several patterns (by date, randomly, etc.).
 
 ;; Usage:
-;; TODO
+;; See the README.org file.
 
 ;;; Code:
 
