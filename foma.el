@@ -17,9 +17,9 @@
 ;; different fonts.
 
 ;; Features:
-;; - Help download font files
-;; - Allow quick switching between different font profiles
-;; - Adopt font profiles in several patterns (by date, randomly, etc.)
+;; - Help download font files.
+;; - Allow quick switching between different font profiles.
+;; - Adopt font profiles in several patterns (by date, randomly, etc.).
 
 ;; Usage:
 ;; TODO
@@ -43,19 +43,19 @@
   :group 'foma)
 
 (defcustom foma-default-height
-  180
+  140
   "Default height to use in a font profile which does not specify it."
   :type '(number)
   :group 'foma)
 
-(defcustom foma-default-fixed
+(defcustom foma-default-mono
   nil
   "Default fixed pitch font to use in a font profile which does not
 specify it."
   :type '(string)
   :group 'foma)
 
-(defcustom foma-default-variable
+(defcustom foma-default-sans
   nil
   "Default variable pitch font to use in a font profile which does not
 specify it."
@@ -84,7 +84,7 @@ files are stored."
 
 (defcustom foma-use-serif
   nil
-  "Non-nil to use serif font for variable pitch font."
+  "Non-nil to use serif font."
   :type '(boolean)
   :group 'foma)
 
@@ -263,22 +263,22 @@ Dispatches to appropriate download function based on font type."
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
   (let ((profile (foma--get-profile profile-name)))
     (if profile
-        (let* ((fixed (or (foma--profile-fixed profile)
-                          foma-default-fixed))
+        (let* ((mono (or (foma--profile-mono profile)
+                          foma-default-mono))
                (use-serif (or (foma--profile-use-serif profile)
                               foma-use-serif))
                (variable (if use-serif
                              (or (foma--profile-serif profile)
                                  foma-default-serif)
-                           (or (foma--profile-variable profile)
-                               foma-default-variable)))
+                           (or (foma--profile-sans profile)
+                               foma-default-sans)))
                (chinese (or (foma--profile-chinese profile)
                             foma-default-chinese))
                (weight (or (foma--profile-weight profile)
                            foma-default-weight))
                (height (or (foma--profile-height profile)
                            foma-default-height)))
-          (foma-setup-fixed-pitch-font fixed weight height)
+          (foma-setup-mono-font mono weight height)
           (if variable
               (foma-setup-variable-pitch-font variable))
           (if chinese
@@ -289,11 +289,11 @@ Dispatches to appropriate download function based on font type."
 (defun foma--profile-name (profile)
   (plist-get profile :name))
 
-(defun foma--profile-fixed (profile)
-  (plist-get profile :fixed))
+(defun foma--profile-mono (profile)
+  (plist-get profile :mono))
 
-(defun foma--profile-variable (profile)
-  (plist-get profile :variable))
+(defun foma--profile-sans (profile)
+  (plist-get profile :sans))
 
 (defun foma--profile-chinese (profile)
   (plist-get profile :chinese))
@@ -323,7 +323,7 @@ Dispatches to appropriate download function based on font type."
             foma-profiles))
 
 ;;;###autoload
-(defun foma-setup-fixed-pitch-font (font weight height)
+(defun foma-setup-mono-font (font weight height)
   "Setup default and fixed-pitch faces."
   (interactive "sFont: \nSWeight: \nnHeight: ")
   (if (foma--font-available-p font)
