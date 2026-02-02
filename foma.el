@@ -326,27 +326,22 @@ Dispatches to appropriate download function based on font type."
 (defun foma-setup-mono-font (font weight height)
   "Setup default and fixed-pitch faces."
   (interactive "sFont: \nSWeight: \nnHeight: ")
-  (if (foma--font-available-p font)
-      (progn
-        (set-face-attribute 'default nil
-                            :font font
-                            :weight weight
-                            :height height)
-        (set-face-attribute 'fixed-pitch nil
-                            :font font
-                            :weight weight
-                            :height 1.0))
-    (warn (format "Font %s is not available!" font))))
+  (set-face-attribute 'default nil
+                      :family font
+                      :weight weight
+                      :height height)
+  (set-face-attribute 'fixed-pitch nil
+                      :family font
+                      :weight weight
+                      :height 1.0))
 
 ;;;###autoload
 (defun foma-setup-variable-pitch-font (font)
   "Setup variable pitch face."
   (interactive "sFont: ")
-  (if (foma--font-available-p font)
-      (set-face-attribute 'variable-pitch nil
-                          :font font
-                          :height 1.0)
-    (warn (format "Font %s is not available!" font))))
+  (set-face-attribute 'variable-pitch nil
+                      :family font
+                      :height 1.0))
 
 ;; credit: https://emacsredux.com/blog/2021/12/22/check-if-a-font-is-available-with-emacs-lisp/
 (defun foma--font-available-p (font-name)
