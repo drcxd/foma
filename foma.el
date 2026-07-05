@@ -326,6 +326,7 @@ Dispatches to appropriate download function based on font type."
 (defun foma-setup-mono-font (font weight height)
   "Setup default and fixed-pitch faces."
   (interactive "sFont: \nSWeight: \nnHeight: ")
+  (foma--check-font font)
   (set-face-attribute 'default nil
                       :family font
                       :weight weight
@@ -339,6 +340,7 @@ Dispatches to appropriate download function based on font type."
 (defun foma-setup-variable-pitch-font (font)
   "Setup variable pitch face."
   (interactive "sFont: ")
+  (foma--check-font font)
   (set-face-attribute 'variable-pitch nil
                       :family font
                       :height 1.0))
@@ -348,15 +350,18 @@ Dispatches to appropriate download function based on font type."
   "Return true if font specified by FONT-NAME is installed."
   (find-font (font-spec :name font-name)))
 
+(defun foma--check-font (font-name)
+  "Error if font FONT-NAME is not installed."
+  (unless (foma--font-available-p font-name)
+    (user-error "Font %s is not available!" font-name)))
+
 ;;;###autoload
 (defun foma-setup-chinese-font (font)
   "Chinese characters use the given font."
   (interactive "sFont name: ")
-  (if (foma--font-available-p font)
-      (progn
-        (set-fontset-font "fontset-default" 'han font)
-        (set-fontset-font t 'cjk-misc font))
-    (warn (format "Font %s is not available!" font))))
+  (foma--check-font font)
+  (set-fontset-font "fontset-default" 'han font)
+  (set-fontset-font t 'cjk-misc font))
 
 (defun foma--apply-profile-by-num (n)
   "Apply the profile using an index into the profile list."
