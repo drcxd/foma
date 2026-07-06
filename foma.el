@@ -55,17 +55,10 @@ specify it."
   :type '(string)
   :group 'foma)
 
-(defcustom foma-default-sans
+(defcustom foma-default-variable
   nil
   "Default variable pitch font to use in a font profile which does not
 specify it."
-  :type '(string)
-  :group 'foma)
-
-(defcustom foma-default-serif
-  nil
-  "Default variable pitch font (serif) to use in a font profile which does
-not specify it."
   :type '(string)
   :group 'foma)
 
@@ -80,12 +73,6 @@ not specify it."
   "The directory relative to the user emacs directory where downloaded font
 files are stored."
   :type '(string)
-  :group 'foma)
-
-(defcustom foma-use-serif
-  nil
-  "Non-nil to use serif font."
-  :type '(boolean)
   :group 'foma)
 
 (defvar foma-google-fonts-api-key ""
@@ -255,34 +242,40 @@ Dispatches to appropriate download function based on font type."
                     (file-name-nondirectory font-file)
                     (error-message-string err))))))))
 
+(defun foma--apply-face-specs (face-specs)
+  (dolist (font-faces face-specs)
+    (let ((font (car font-faces))
+          (faces (cdr font-faces)))
+      (dolist (face faces)
+        (set-face-attribute face nil :font font)))))
+
 ;;;###autoload
 (defun foma-apply-profile (profile-name)
   "Apply the font profile specified by the given profile name."
   (interactive
    (let ((completion-ignore-case t))
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
+  ;; TODO: revert face-specs of current profile
   (let ((profile (foma--get-profile profile-name)))
     (if profile
         (let* ((mono (or (foma--profile-mono profile)
                           foma-default-mono))
-               (use-serif (or (foma--profile-use-serif profile)
-                              foma-use-serif))
-               (variable (if use-serif
-                             (or (foma--profile-serif profile)
-                                 foma-default-serif)
-                           (or (foma--profile-sans profile)
-                               foma-default-sans)))
+               (variable (or (foma--profile-variable profile)
+                             foma-default-variable))
                (chinese (or (foma--profile-chinese profile)
                             foma-default-chinese))
                (weight (or (foma--profile-weight profile)
                            foma-default-weight))
                (height (or (foma--profile-height profile)
-                           foma-default-height)))
+                           foma-default-height))
+               (face-specs (foma--profile-face-specs profile)))
           (foma-setup-mono-font mono weight height)
           (if variable
               (foma-setup-variable-pitch-font variable))
           (if chinese
               (foma-setup-chinese-font chinese))
+          (if face-specs
+              (foma--apply-face-specs face-specs))
           (setq foma--current-profile profile-name))
       (warn "Missing font profile: %s" profile-name))))
 
@@ -292,8 +285,8 @@ Dispatches to appropriate download function based on font type."
 (defun foma--profile-mono (profile)
   (plist-get profile :mono))
 
-(defun foma--profile-sans (profile)
-  (plist-get profile :sans))
+(defun foma--profile-variable (profile)
+  (plist-get profile :variable))
 
 (defun foma--profile-chinese (profile)
   (plist-get profile :chinese))
@@ -304,11 +297,8 @@ Dispatches to appropriate download function based on font type."
 (defun foma--profile-height (profile)
   (plist-get profile :height))
 
-(defun foma--profile-serif (profile)
-  (plist-get profile :serif))
-
-(defun foma--profile-use-serif (profile)
-  (plist-get profile :use-serif))
+(defun foma--profile-face-specs (profile)
+  (plist-get profile :face-specs))
 
 (defun foma--get-profile-names ()
   "Return the registered profile names."
