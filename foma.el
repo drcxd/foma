@@ -242,12 +242,17 @@ Dispatches to appropriate download function based on font type."
                     (file-name-nondirectory font-file)
                     (error-message-string err))))))))
 
-(defun foma--apply-face-specs (face-specs)
-  (dolist (font-faces face-specs)
-    (let ((font (car font-faces))
-          (faces (cdr font-faces)))
+;; TODO: Revert more properties than `:family'
+(defun foma--apply-face-specs (face-specs &optional revert)
+  (dolist (specs-faces face-specs)
+    (let ((specs (car specs-faces))
+          (faces (cdr specs-faces)))
+      (when revert
+        (setq specs (cl-copy-list specs))
+        (if (plist-member specs :family)
+            (plist-put specs :family 'unspecified)))
       (dolist (face faces)
-        (set-face-attribute face nil :font font)))))
+        (apply #'set-face-attribute face nil specs)))))
 
 ;;;###autoload
 (defun foma-apply-profile (profile-name)
@@ -255,7 +260,10 @@ Dispatches to appropriate download function based on font type."
   (interactive
    (let ((completion-ignore-case t))
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
-  ;; TODO: revert face-specs of current profile
+  (let ((current-profile (foma--get-profile foma--current-profile)))
+    (if current-profile
+        (if-let* ((face-specs (foma--profile-face-specs current-profile)))
+            (foma--apply-face-specs face-specs t))))
   (let ((profile (foma--get-profile profile-name)))
     (if profile
         (let* ((mono (or (foma--profile-mono profile)
