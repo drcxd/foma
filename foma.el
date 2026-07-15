@@ -327,7 +327,8 @@ Dispatches to appropriate download function based on font type."
   (let (result)
     (dolist (profile foma-profiles)
       (when-let ((variable-font (foma--profile-variable profile)))
-        (push variable-font result)))
+        (when (foma--font-available-p variable-font)
+          (push variable-font result))))
     (sort result)))
 
 (defun foma--nth-mod-list-length (list n)
@@ -372,12 +373,28 @@ WEIGHT and HEIGHT are applied to default faces only."
 
 ;;;###autoload
 (defun foma-setup-variable-pitch-font (font)
-  "Apply FONT to face `variable-pitch'."
-  (interactive "sFont: ")
+  "Apply FONT to face `variable-pitch'.
+
+FONT can be a string of the to-be-applied font family.
+
+If FONT is symbol `by-date', then a font will be selected using
+`foma--select-by-day' from the list of variable pitch fonts returned by
+`foma--collect-variable-fonts'.
+
+If FONT is symbol `random', then a font will be selected randomly from
+the list of variable pitch fonts returned by
+`foma--collect-variable-fonts'."
+  (interactive
+   (let ((completion-ignore-case t))
+     (list (completing-read "Font: " (foma--collect-variable-fonts)))))
+  (when (symbolp font)
+    (let ((variable-fonts (foma--collect-variable-fonts)))
+      (setq font (cond ((eq font 'by-date) (foma--select-by-day variable-fonts))
+                       ((eq font 'random) (seq-random-elt variable-fonts))
+                       (t (user-error "Unknown symbol %s" font))))))
   (foma--check-font font)
   (set-face-attribute 'variable-pitch nil
-                      :family font
-                      :height 1.0))
+                      :family font))
 
 ;;;###autoload
 (defun foma-setup-chinese-font (font)
@@ -408,14 +425,6 @@ FONT is a string of the font name."
   "Describe the font profile currently used."
   (interactive)
   (message "The current foma profile is %s" foma--current-profile))
-
-;;;###autoload
-(defun foma-apply-variable-font (font)
-  "Apply FONT as font family for variable-pitch face."
-  (interactive
-   (let ((completion-ignore-case t))
-     (list (completing-read "Font: " (foma--collect-variable-fonts)))))
-  (foma-setup-variable-pitch-font font))
 
 ;;;###autoload
 (defun foma-apply-variable-font-by-day ()
