@@ -351,7 +351,7 @@ Dispatches to appropriate download function based on font type."
 
 (defun foma--check-font (font-name)
   "Warning if FONT-NAME is not installed."
-  (unless (foma--font-available-p font-name)
+  (unless (find-font (font-spec :family font-name))
     (warn "Font %s may not be available!" font-name)))
 
 ;;;###autoload
@@ -414,7 +414,7 @@ FONT is a string of the font name."
   "Apply FONT as font family for variable-pitch face."
   (interactive
    (let ((completion-ignore-case t))
-     (list (completing-read "Font: " (foma--collect-variable-fonts) nil nil))))
+     (list (completing-read "Font: " (foma--collect-variable-fonts)))))
   (foma-setup-variable-pitch-font font))
 
 ;;;###autoload
