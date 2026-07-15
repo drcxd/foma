@@ -343,23 +343,27 @@ Dispatches to appropriate download function based on font type."
                       :family font
                       :height 1.0))
 
-;; credit: https://emacsredux.com/blog/2021/12/22/check-if-a-font-is-available-with-emacs-lisp/
+;; credit:
+;; https://emacsredux.com/blog/2021/12/22/check-if-a-font-is-available-with-emacs-lisp/
+;; and comments by Amit Patel
 (defun foma--font-available-p (font-name)
-  "Return true if font specified by FONT-NAME is installed."
-  (find-font (font-spec :name font-name)))
+  "Return non-nil if FONT-NAME is installed."
+  (member font-name (font-family-list)))
 
 (defun foma--check-font (font-name)
-  "Error if font FONT-NAME is not installed."
+  "Warning if FONT-NAME is not installed."
   (unless (foma--font-available-p font-name)
-    (user-error "Font %s is not available!" font-name)))
+    (warn "Font %s may not be available!" font-name)))
 
 ;;;###autoload
 (defun foma-setup-chinese-font (font)
-  "Chinese characters use the given font."
+  "Make Chinese characters use FONT.
+
+FONT is a string of the font name."
   (interactive "sFont name: ")
   (foma--check-font font)
-  (set-fontset-font "fontset-default" 'han font)
-  (set-fontset-font t 'cjk-misc font))
+  (set-fontset-font t 'han (font-spec :family font))
+  (set-fontset-font t 'cjk-misc (font-spec :family font)))
 
 (defun foma--apply-profile-by-num (n)
   "Apply the profile using an index into the profile list."
