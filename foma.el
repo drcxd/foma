@@ -337,7 +337,9 @@ Dispatches to appropriate download function based on font type."
 
 (defun foma--date-to-day ()
   "Return the number of day computed from `current-time'."
-  (/ (time-convert (current-time) 'integer) (* 60 60 24)))
+  (/ (+ (car (current-time-zone))
+        (time-convert (current-time) 'integer))
+     (* 60 60 24)))
 
 (defun foma--select-by-day (list)
   "Return an element of LIST depends on the current date."
