@@ -11,7 +11,7 @@
 ;;; Commentary:
 
 ;; This package helps download fonts in your operating systems and
-;; quickly switching between different font profiles in Emacs. Unlike
+;; quickly switching between different font profiles in Emacs.  Unlike
 ;; other font packages that focus on persistent font configurations,
 ;; foma is designed for users who enjoy frequently switching between
 ;; different fonts.
@@ -50,15 +50,13 @@
 
 (defcustom foma-default-mono
   nil
-  "Default fixed pitch font to use in a font profile which does not
-specify it."
+  "Default fixed pitch font to use in a font profile."
   :type '(string)
   :group 'foma)
 
 (defcustom foma-default-variable
   nil
-  "Default variable pitch font to use in a font profile which does not
-specify it."
+  "Default variable pitch font to use in a font profile."
   :type '(string)
   :group 'foma)
 
@@ -70,8 +68,9 @@ specify it."
 
 (defcustom foma-fonts-dir
   "fonts"
-  "The directory relative to the user emacs directory where downloaded font
-files are stored."
+  "The directory to store downloaded font files.
+
+It is relative to the user Emacs directory."
   :type '(string)
   :group 'foma)
 
@@ -82,15 +81,17 @@ files are stored."
   "Currently selected profile.")
 
 (defvar foma-fonts '()
-  "A list of known fonts. Each font is a list with the following elements:
+  "A list of known fonts.  Each font is a list with the following elements:
 - name: font name (identifier for zip, family name for Google Fonts)
 - type: either \\='zip or \\='google
 - url: URL to zip file (only required if type is \\='zip)")
 
 (defvar foma-profiles '()
-  "A list of font profiles. A profile is a plist that contains the
-following elements: name, fixed-pitch-font, variable-pitch-font,
-chinese-font, weight, and height.")
+  "A list of font profiles.
+
+A profile is a plist that contains the following elements: name,
+fixed-pitch-font, variable-pitch-font, chinese-font, weight, height, and
+face-specs.")
 
 (defvar foma--process-output-buffer-name "*foma-process-output*"
   "Buffer name that contains the output of extracting program.")
@@ -197,7 +198,7 @@ Dispatches to appropriate download function based on font type."
       (error "Unknown font type: %s" type)))))
 
 (defun foma--extract-font-files (file-name)
-  "Extract font files from .zip files."
+  "Extract font files from FILE-NAME."
   (let ((dir (foma--download-dir)))
     (unless (file-directory-p dir)
       (error "Font directory does not exist: %s" dir))
@@ -244,6 +245,7 @@ Dispatches to appropriate download function based on font type."
 
 ;; TODO: Revert more properties than `:family'
 (defun foma--apply-face-specs (face-specs &optional revert)
+  "Apply FACE-SPECS.  Revert its effect if REVERT is non-nil."
   (dolist (specs-faces face-specs)
     (let ((specs (car specs-faces))
           (faces (cdr specs-faces)))
@@ -256,7 +258,7 @@ Dispatches to appropriate download function based on font type."
 
 ;;;###autoload
 (defun foma-apply-profile (profile-name)
-  "Apply the font profile specified by the given profile name."
+  "Apply the font profile specified by PROFILE-NAME."
   (interactive
    (let ((completion-ignore-case t))
      (list (completing-read "Font profile name: " (foma--get-profile-names)))))
@@ -315,33 +317,30 @@ Dispatches to appropriate download function based on font type."
           foma-profiles))
 
 (defun foma--get-profile (name)
-  "Return font profile by name."
+  "Return font profile with NAME."
   (seq-find (lambda (p)
               (string= name (foma--profile-name p)))
             foma-profiles))
 
-;;;###autoload
-(defun foma-setup-mono-font (font weight height)
-  "Setup default and fixed-pitch faces."
-  (interactive "sFont: \nSWeight: \nnHeight: ")
-  (foma--check-font font)
-  (set-face-attribute 'default nil
-                      :family font
-                      :weight weight
-                      :height height)
-  (set-face-attribute 'fixed-pitch nil
-                      :family font
-                      :weight weight
-                      :height 1.0))
+(defun foma--collect-variable-fonts ()
+  "Return a list of variable font names occur in profiles."
+  (let (result)
+    (dolist (profile foma-profiles)
+      (when-let ((variable-font (foma--profile-variable profile)))
+        (push variable-font result)))
+    (sort result)))
 
-;;;###autoload
-(defun foma-setup-variable-pitch-font (font)
-  "Setup variable pitch face."
-  (interactive "sFont: ")
-  (foma--check-font font)
-  (set-face-attribute 'variable-pitch nil
-                      :family font
-                      :height 1.0))
+(defun foma--nth-mod-list-length (list n)
+  "Return the N modulo list length element of LIST."
+  (nth (mod n (length list)) list))
+
+(defun foma--date-to-day ()
+  "Return the number of day computed from `current-time'."
+  (/ (time-convert (current-time) 'integer) (* 60 60 24)))
+
+(defun foma--select-by-day (list)
+  "Return an element of LIST depends on the current date."
+  (foma--nth-mod-list-length list (foma--date-to-day)))
 
 ;; credit:
 ;; https://emacsredux.com/blog/2021/12/22/check-if-a-font-is-available-with-emacs-lisp/
@@ -356,6 +355,31 @@ Dispatches to appropriate download function based on font type."
     (warn "Font %s may not be available!" font-name)))
 
 ;;;###autoload
+(defun foma-setup-mono-font (font weight height)
+  "Apply FONT to face `default' and face `fixed-pitch'.
+
+WEIGHT and HEIGHT are applied to default faces only."
+  (interactive "sFont: \nSWeight: \nnHeight: ")
+  (foma--check-font font)
+  (set-face-attribute 'default nil
+                      :family font
+                      :weight weight
+                      :height height)
+  (set-face-attribute 'fixed-pitch nil
+                      :family font
+                      :weight weight
+                      :height 1.0))
+
+;;;###autoload
+(defun foma-setup-variable-pitch-font (font)
+  "Apply FONT to face `variable-pitch'."
+  (interactive "sFont: ")
+  (foma--check-font font)
+  (set-face-attribute 'variable-pitch nil
+                      :family font
+                      :height 1.0))
+
+;;;###autoload
 (defun foma-setup-chinese-font (font)
   "Make Chinese characters use FONT.
 
@@ -365,21 +389,11 @@ FONT is a string of the font name."
   (set-fontset-font t 'han (font-spec :family font))
   (set-fontset-font t 'cjk-misc (font-spec :family font)))
 
-(defun foma--apply-profile-by-num (n)
-  "Apply the profile using an index into the profile list."
-  (let ((len (length foma-profiles)))
-    (if (= 0 len)
-        (message "No font profiles!")
-      (let* ((idx (% n len))
-             (profile-name (foma--profile-name (nth idx foma-profiles))))
-        (foma-apply-profile profile-name)))))
-
 ;;;###autoload
 (defun foma-apply-profile-by-day ()
-  "Apply a profile depends on date."
+  "Apply a profile depends on the current date."
   (interactive)
-  (let ((day (/ (time-convert (current-time) 'integer) (* 60 60 24))))
-    (foma--apply-profile-by-num day)))
+  (foma-apply-profile (foma--select-by-day (foma--get-profile-names))))
 
 ;;;###autoload
 (defun foma-apply-profile-rand ()
@@ -394,6 +408,21 @@ FONT is a string of the font name."
   "Describe the font profile currently used."
   (interactive)
   (message "The current foma profile is %s" foma--current-profile))
+
+;;;###autoload
+(defun foma-apply-variable-font (font)
+  "Apply FONT as font family for variable-pitch face."
+  (interactive
+   (let ((completion-ignore-case t))
+     (list (completing-read "Font: " (foma--collect-variable-fonts) nil nil))))
+  (foma-setup-variable-pitch-font font))
+
+;;;###autoload
+(defun foma-apply-variable-font-by-day ()
+  "Apply a variable font depends on the current date."
+  (interactive)
+  (foma-setup-variable-pitch-font
+   (foma--select-by-day (foma--collect-variable-fonts))))
 
 (provide 'foma)
 ;;; foma.el ends here
