@@ -243,18 +243,26 @@ Dispatches to appropriate download function based on font type."
                     (file-name-nondirectory font-file)
                     (error-message-string err))))))))
 
-;; TODO: Revert more properties than `:family'
+(defvar foma--cached-face-attributes (make-hash-table :test 'equal)
+  "Cached face attributes before applying face specs.
+
+A hash table whose keys are face symbols and values are a list returned
+by `face-all-attributes'.")
+
 (defun foma--apply-face-specs (face-specs &optional revert)
   "Apply FACE-SPECS.  Revert its effect if REVERT is non-nil."
   (dolist (specs-faces face-specs)
     (let ((specs (car specs-faces))
           (faces (cdr specs-faces)))
-      (when revert
-        (setq specs (cl-copy-list specs))
-        (if (plist-member specs :family)
-            (plist-put specs :family 'unspecified)))
       (dolist (face faces)
-        (apply #'set-face-attribute face nil specs)))))
+        (if revert
+            (let ((cached-attributes
+                   (mapcan (lambda (pair)
+                             (list (car pair) (cdr pair)))
+                           (gethash face foma--cached-face-attributes))))
+              (apply #'set-face-attribute face nil cached-attributes))
+          (puthash face (face-all-attributes face (selected-frame)) foma--cached-face-attributes)
+          (apply #'set-face-attribute face nil specs))))))
 
 ;;;###autoload
 (defun foma-apply-profile (profile-name)
